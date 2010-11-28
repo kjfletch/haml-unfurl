@@ -10,9 +10,12 @@ module HamlUnfurl
   end
 
   class Unfurl
+    attr_accessor :include_dirs
+
     def initialize(filename)
       @file_content = File.read(filename)
       @template, @template_lookup = getopt_template()
+      @include_dirs = ['.']
     end
 
     def getopt_template()
@@ -36,6 +39,7 @@ module HamlUnfurl
 
         lookups[@template_lookup] = LookupString.new(output)
         template = Unfurl.new(locate_file(@template))
+        template.include_dirs = @include_dirs
         output = template.render(data, lookups)
         
         if lookup_backup != nil
@@ -88,15 +92,20 @@ module HamlUnfurl
         filename = "#{filename}.haml"
       end
 
-      # TODO: need to add stuff here to locate file from a list of
-      # include paths.
-      
-      return filename
-    end
+      @include_dirs.each do |path|
+        test_path = File.join(path, filename)
 
+        if File.exists?(test_path)
+          return test_path
+        end
+      end
+
+      throw "Can't Find File"
+    end
   end
 
   myUnfurl = Unfurl.new('test-document.haml')
+  myUnfurl.include_dirs << './templates/'
   output = myUnfurl.render()
   puts output
   File.open('test.html', 'w') {|f| f.write(output)}
