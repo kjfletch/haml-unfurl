@@ -1,3 +1,4 @@
+require 'date'
 require 'haml'
 
 module HamlUnfurl
@@ -14,23 +15,92 @@ module HamlUnfurl
 
     def initialize(filename)
       @file_content = File.read(filename)
+      @raw_options = get_options(@file_content)
       @template, @template_lookup = getopt_template()
+      @tags = getopt_tags()
+      @author = getopt_general('author')
+      @title = getopt_general('title')
+      @datetime = getopt_time()
       @include_dirs = ['.']
     end
 
     def getopt_template()
-      opt_regex_template = /^-\#\s*template:\s+(\w+)\s*\((\w+)\)/
+      template_key = 'template'
+      opt_regex_template = /(\w+)\s*\((\w+)\)/
 
-      if opt_regex_template =~ @file_content
-        return "#$1".to_sym(), "#$2".to_sym()
+      if @raw_options.key?(template_key)
+        if opt_regex_template =~ @raw_options[template_key]
+          return "#$1".to_sym(), "#$2".to_sym()
+        end
+      end
+      return nil, nil
+    end
+    
+    def getopt_time()
+      time_key = 'time'
+
+      if @raw_options.key?(time_key)
+        begin
+          return Date::strptime(@raw_options[time_key], "%Y-%m-%d %H:%M")
+        rescue ArgumentError
+
+        end
       end
 
-      return nil, nil
+      return nil
+    end
+
+    def getopt_tags()
+      tags_key = 'tags'
+      tags = []
+
+      if @raw_options.key?(tags_key)
+        tags = @raw_options[tags_key].split(',')
+        tags = tags.map {|x| x.strip() }
+        tags.delete('')
+      end
+
+      return tags
+    end
+
+    def getopt_general(key)
+      if @raw_options.key?(key)
+        return @raw_options[key]
+      end
+
+      return nil
+    end
+
+    def get_options(content)
+      options = {}
+      opt_regex = /^-\#\s*([a-zA-Z0-9-]+)\s*:(.*)$/
+
+      content.scan(opt_regex).each do |match|
+        options[match[0]] = match[1].strip()
+      end
+
+      return options
     end
 
     def render(data={}, lookups={})
       lookup_backup = nil
-      output = render_buffer(@file_content, data, lookups)
+      render_data={}
+      
+      data.each do |x,y|
+        render_data[x] = y
+      end
+
+      if @title 
+        render_data[:title] = @title 
+      end
+      if @author 
+        render_data[:author] = @author 
+      end
+      if @datetime
+        render_data[:datetime] = @datetime
+      end
+
+      output = render_buffer(@file_content, render_data, lookups)
 
       if @template and @template_lookup
         if lookups.key?(@template_lookup)
@@ -40,7 +110,7 @@ module HamlUnfurl
         lookups[@template_lookup] = LookupString.new(output)
         template = Unfurl.new(locate_file(@template))
         template.include_dirs = @include_dirs
-        output = template.render(data, lookups)
+        output = template.render(render_data, lookups)
         
         if lookup_backup != nil
           lookups[@template_lookup] = lookup_backup
