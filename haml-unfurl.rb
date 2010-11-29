@@ -14,7 +14,7 @@ module HamlUnfurl
     attr_reader :uri_fmt, :datetime, :tags, :author, :title
 
     def initialize(filename, include_dirs=[])
-      @include_dirs = include_dirs.concat(['.']).uniq()
+      @include_dirs = include_dirs.concat([]).uniq()
       @file_content = File.read(filename)
       @raw_options = get_options(@file_content)
       @template, @template_lookup = getopt_template()
@@ -187,10 +187,5 @@ module HamlUnfurl
       throw "Can't Find File"
     end
   end
-
-  myUnfurl = Unfurl.new('test-document.haml', ['./templates'])
-  output = myUnfurl.render()
-  puts output
-  File.open('test.html', 'w') {|f| f.write(output)}
 end
 
