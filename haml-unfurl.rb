@@ -11,6 +11,8 @@ module HamlUnfurl
   end
 
   class Unfurl
+    attr_reader :uri_fmt, :datetime, :tags, :author, :title
+
     def initialize(filename, include_dirs=[])
       @include_dirs = include_dirs.concat(['.']).uniq()
       @file_content = File.read(filename)
@@ -19,6 +21,7 @@ module HamlUnfurl
       @tags = getopt_tags()
       @author = getopt_general('author')
       @title = getopt_general('title')
+      @uri_fmt = getopt_output()
       @datetime = getopt_time()
     end
 
@@ -34,6 +37,16 @@ module HamlUnfurl
         end
       end
       return nil, nil
+    end
+
+    def getopt_output()
+      fmt = getopt_general('output')
+
+      if not fmt and @template
+        fmt = @template.uri_fmt
+      end
+      
+      return fmt
     end
     
     def getopt_time()
