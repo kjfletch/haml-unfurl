@@ -52,15 +52,15 @@ module HamlUnfurl
 
     def getopt_tags()
       tags_key = 'tags'
-      tags = []
 
       if @raw_options.key?(tags_key)
         tags = @raw_options[tags_key].split(',')
         tags = tags.map {|x| x.strip() }
         tags.delete('')
+        return tags
       end
 
-      return tags
+      return nil
     end
 
     def getopt_general(key)
@@ -98,6 +98,9 @@ module HamlUnfurl
       end
       if @datetime
         render_data[:datetime] = @datetime
+      end
+      if @tags
+        render_data[:tags] = @tags
       end
 
       output = render_buffer(@file_content, render_data, lookups)
