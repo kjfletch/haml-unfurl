@@ -11,9 +11,8 @@ module HamlUnfurl
   end
 
   class Unfurl
-    attr_accessor :include_dirs
-
-    def initialize(filename)
+    def initialize(filename, include_dirs=[])
+      @include_dirs = include_dirs.concat(['.']).uniq()
       @file_content = File.read(filename)
       @raw_options = get_options(@file_content)
       @template, @template_lookup = getopt_template()
@@ -21,7 +20,6 @@ module HamlUnfurl
       @author = getopt_general('author')
       @title = getopt_general('title')
       @datetime = getopt_time()
-      @include_dirs = ['.']
     end
 
     def getopt_template()
@@ -30,7 +28,9 @@ module HamlUnfurl
 
       if @raw_options.key?(template_key)
         if opt_regex_template =~ @raw_options[template_key]
-          return "#$1".to_sym(), "#$2".to_sym()
+          template, symbol =  "#$1".to_sym(), "#$2".to_sym()
+          template = Unfurl.new(locate_file(template), @include_dirs)
+          return template, symbol
         end
       end
       return nil, nil
@@ -111,9 +111,7 @@ module HamlUnfurl
         end
 
         lookups[@template_lookup] = LookupString.new(output)
-        template = Unfurl.new(locate_file(@template))
-        template.include_dirs = @include_dirs
-        output = template.render(render_data, lookups)
+        output = @template.render(render_data, lookups)
         
         if lookup_backup != nil
           lookups[@template_lookup] = lookup_backup
@@ -177,8 +175,7 @@ module HamlUnfurl
     end
   end
 
-  myUnfurl = Unfurl.new('test-document.haml')
-  myUnfurl.include_dirs << './templates/'
+  myUnfurl = Unfurl.new('test-document.haml', ['./templates'])
   output = myUnfurl.render()
   puts output
   File.open('test.html', 'w') {|f| f.write(output)}
