@@ -1,3 +1,4 @@
+# Copyright (C) 2010 Kevin J. Fletcher
 require 'date'
 require 'haml'
 
@@ -11,26 +12,56 @@ module HamlUnfurl
   end
 
   class Unfurl
-    attr_reader :uri_fmt, :datetime, :tags, :author, :title
+    attr_reader :options
 
     def initialize(filename, include_dirs=[])
       @include_dirs = include_dirs.concat([]).uniq()
       @file_content = File.read(filename)
-      @raw_options = get_options(@file_content)
+      @options = get_options(@file_content)
       @template, @template_lookup = getopt_template()
-      @tags = getopt_tags()
-      @author = getopt_general('author')
-      @title = getopt_general('title')
-      @uri_fmt = getopt_output()
-      @datetime = getopt_time()
+    end
+
+    def get_lowest_option(option_name)
+      options = get_all_options(option_name)
+
+      if options.length > 0
+        return options[-1]
+      end
+      
+      return nil
+    end
+
+    def get_highest_option(option_name)
+      options = get_all_options(option_name)
+
+      if options.length > 0
+        return options[0]
+      end
+        
+      return nil
+    end
+
+    def get_all_options(option_name)
+      opts = []
+      opt = getopt_general(option_name)
+      
+      if opt
+        opts << opt
+      end
+
+      if @template
+        opts = opts.concat(@template.get_all_options(option_name))
+      end
+
+      return opts
     end
 
     def getopt_template()
       template_key = 'template'
       opt_regex_template = /(\w+)\s*\((\w+)\)/
 
-      if @raw_options.key?(template_key)
-        if opt_regex_template =~ @raw_options[template_key]
+      if @options.key?(template_key)
+        if opt_regex_template =~ @options[template_key]
           template, symbol =  "#$1".to_sym(), "#$2".to_sym()
           template = Unfurl.new(locate_file(template), @include_dirs)
           return template, symbol
@@ -39,46 +70,9 @@ module HamlUnfurl
       return nil, nil
     end
 
-    def getopt_output()
-      fmt = getopt_general('output')
-
-      if not fmt and @template
-        fmt = @template.uri_fmt
-      end
-      
-      return fmt
-    end
-    
-    def getopt_time()
-      time_key = 'time'
-
-      if @raw_options.key?(time_key)
-        begin
-          return Date::strptime(@raw_options[time_key], "%Y-%m-%d %H:%M")
-        rescue ArgumentError
-
-        end
-      end
-
-      return nil
-    end
-
-    def getopt_tags()
-      tags_key = 'tags'
-
-      if @raw_options.key?(tags_key)
-        tags = @raw_options[tags_key].split(',')
-        tags = tags.map {|x| x.strip() }
-        tags.delete('')
-        return tags
-      end
-
-      return nil
-    end
-
     def getopt_general(key)
-      if @raw_options.key?(key)
-        return @raw_options[key]
+      if @options.key?(key)
+        return @options[key]
       end
 
       return nil
@@ -101,19 +95,6 @@ module HamlUnfurl
       
       data.each do |x,y|
         render_data[x] = y
-      end
-
-      if @title 
-        render_data[:title] = @title 
-      end
-      if @author 
-        render_data[:author] = @author 
-      end
-      if @datetime
-        render_data[:datetime] = @datetime
-      end
-      if @tags
-        render_data[:tags] = @tags
       end
 
       output = render_buffer(@file_content, render_data, lookups)

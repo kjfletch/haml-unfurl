@@ -1,7 +1,21 @@
+# Copyright (C) 2010 Kevin J. Fletcher
 require 'haml-unfurl'
 require 'fileutils'
 
 module HamlUnfurl
+  class BlogUnfurlData
+    attr_accessor :doc, :title, :author, :datetime, :tags, :output_file
+
+    def initialize()
+      @doc = nil
+      @title = nil
+      @author = nil
+      @datetime = nil
+      @tags = nil
+      @output_file = nil
+    end
+  end
+
   class BlogUnfurl
     @@uri_fmt_title = "{title}"
     @@uri_fmt_year = "{year}"
@@ -19,15 +33,47 @@ module HamlUnfurl
       file_list = get_file_list()
 
       file_list.each do |file|
-        docs << Unfurl.new(file, @include_dirs)
+        doc_data = BlogUnfurlData.new()
+        doc_data.doc = Unfurl.new(file, @include_dirs)
+        
+        doc_data.title = doc_data.doc.get_lowest_option('title')
+        doc_data.title = 'No Title Set' if doc_data.title == nil
+
+        doc_data.author = doc_data.doc.get_lowest_option('author')
+        doc_data.author = 'No Author Set' if doc_data.author == nil
+
+        doc_data.datetime = doc_data.doc.get_lowest_option('time')
+        doc_data.datetime = getopt_datetime(doc_data.datetime) if doc_data.datetime != nil
+        doc_data.datetime = DateTime.new() if doc_data.datetime == nil
+
+        doc_data.tags = doc_data.doc.get_all_options('tags')
+        doc_data.tags = doc_data.tags.join(', ')
+        doc_data.tags = doc_data.tags.split(',')
+        doc_data.tags = doc_data.tags.map {|x| x.strip() }
+        doc_data.tags.uniq!()
+        doc_data.tags.delete('')
+
+        ## We do this after all other data vars are set up as they may
+        ## be referenced by the uri expand for the filename.
+        doc_data.output_file = doc_data.doc.get_lowest_option('output')
+        doc_data.output_file = "#{@@uri_fmt_title}.html" if doc_data.output_file == nil
+        doc_data.output_file = get_output_file(output_dir, doc_data.output_file, doc_data)
+        
+        docs << doc_data
       end
 
-      docs.each do |doc|
-        rendered = doc.render()
-        output_file = get_output_file(output_dir, doc)
-        output_file_dir = File.dirname(output_file)
+      docs.each do |doc_data|
+        data = {
+          :title => doc_data.title,
+          :author => doc_data.author,
+          :datetime => doc_data.datetime,
+          :tags => doc_data.tags
+        }
+          
+        rendered = doc_data.doc.render(data)
+        output_file_dir = File.dirname(doc_data.output_file)
         FileUtils.mkdir_p(output_file_dir)
-        File.open(output_file, 'w') { |f| f.write(rendered) }
+        File.open(doc_data.output_file, 'w') { |f| f.write(rendered) }
       end
     end
 
@@ -49,13 +95,19 @@ module HamlUnfurl
       end
     end
 
-    def get_output_file(output_dir, doc)
-      uri_fmt = '#{@@uri_fmt_title}.html'
+    def getopt_datetime(datetime)
+      time_key = 'time'
 
-      if doc.uri_fmt
-        uri_fmt = doc.uri_fmt
+      begin
+        return Date::strptime(datetime, "%Y-%m-%d %H:%M")
+      rescue ArgumentError
+        
       end
 
+      return nil
+    end
+
+    def get_output_file(output_dir, uri_fmt, doc)
       if uri_fmt.include?(@@uri_fmt_title)
         if not doc.title
           throw "No document title defined but output URI format specifies a title replacement."
@@ -78,9 +130,9 @@ module HamlUnfurl
     end
 
     def uri_safe(nonsafe)
-      nonsafe.gsub!(/[^a-zA-Z0-9_]/, '_')
-      nonsafe.gsub!(/_{2,}/, '_')
-      nonsafe.gsub!(/^_|_$/, '')
+      nonsafe = nonsafe.gsub(/[^a-zA-Z0-9_]/, '_')
+      nonsafe = nonsafe.gsub(/_{2,}/, '_')
+      nonsafe = nonsafe.gsub(/^_|_$/, '')
       return nonsafe
     end
 
