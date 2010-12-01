@@ -4,7 +4,7 @@ require 'fileutils'
 
 module HamlUnfurl
   class BlogUnfurlData
-    attr_accessor :doc, :title, :author, :datetime, :tags, :output_file
+    attr_accessor :doc, :title, :author, :datetime, :tags, :output_uri
 
     def initialize()
       @doc = nil
@@ -12,7 +12,7 @@ module HamlUnfurl
       @author = nil
       @datetime = nil
       @tags = nil
-      @output_file = nil
+      @output_uri = nil
     end
   end
 
@@ -55,9 +55,9 @@ module HamlUnfurl
 
         ## We do this after all other data vars are set up as they may
         ## be referenced by the uri expand for the filename.
-        doc_data.output_file = doc_data.doc.get_lowest_option('output')
-        doc_data.output_file = "#{@@uri_fmt_title}.html" if doc_data.output_file == nil
-        doc_data.output_file = get_output_file(output_dir, doc_data.output_file, doc_data)
+        doc_data.output_uri = doc_data.doc.get_lowest_option('output')
+        doc_data.output_uri = "#{@@uri_fmt_title}.html" if doc_data.output_uri == nil
+        doc_data.output_uri = get_output_file(doc_data.output_uri, doc_data)
         
         docs << doc_data
       end
@@ -69,11 +69,12 @@ module HamlUnfurl
           :datetime => doc_data.datetime,
           :tags => doc_data.tags
         }
-          
+ 
+        output_file = File.join(output_dir, doc_data.output_uri)
         rendered = doc_data.doc.render(data)
-        output_file_dir = File.dirname(doc_data.output_file)
+        output_file_dir = File.dirname(output_file)
         FileUtils.mkdir_p(output_file_dir)
-        File.open(doc_data.output_file, 'w') { |f| f.write(rendered) }
+        File.open(output_file, 'w') { |f| f.write(rendered) }
       end
     end
 
@@ -107,26 +108,28 @@ module HamlUnfurl
       return nil
     end
 
-    def get_output_file(output_dir, uri_fmt, doc)
-      if uri_fmt.include?(@@uri_fmt_title)
+    def get_output_file(uri_fmt, doc)
+      uri = uri_fmt
+
+      if uri.include?(@@uri_fmt_title)
         if not doc.title
           throw "No document title defined but output URI format specifies a title replacement."
         end
 
-        uri_fmt.gsub!(@@uri_fmt_title, uri_safe(doc.title))
+        uri.gsub!(@@uri_fmt_title, uri_safe(doc.title))
       end
 
-      if uri_fmt.include?(@@uri_fmt_year) or uri_fmt.include?(@@uri_fmt_month) or uri_fmt?(@@uri_fmt_day)
+      if uri.include?(@@uri_fmt_year) or uri.include?(@@uri_fmt_month) or uri?(@@uri_fmt_day)
         if not doc.datetime
           throw "No document datetime defined but output URI format specifies a datetime replacement."
         end
 
-        uri_fmt.gsub!(@@uri_fmt_year, "#{doc.datetime.year}")
-        uri_fmt.gsub!(@@uri_fmt_month, "#{doc.datetime.month}")
-        uri_fmt.gsub!(@@uri_fmt_day, "#{doc.datetime.day}")
+        uri.gsub!(@@uri_fmt_year, "#{doc.datetime.year}")
+        uri.gsub!(@@uri_fmt_month, "#{doc.datetime.month}")
+        uri.gsub!(@@uri_fmt_day, "#{doc.datetime.day}")
       end
       
-      return File.join(output_dir, uri_fmt)
+      return uri
     end
 
     def uri_safe(nonsafe)
