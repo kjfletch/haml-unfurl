@@ -5,14 +5,14 @@ require 'fileutils'
 module HuSite
 
   class HuSitePublic
-    attr_reader :title, :author, :tags, :datetime, :uri
+    attr_reader :title, :author, :tags, :date, :uri
 
     def initialize(doc_data, docs)
       @doc_data = doc_data
       @docs = docs
       @title = @doc_data.title
       @author = @doc_data.author
-      @datetime = @doc_data.datetime
+      @date = @doc_data.date
       @uri = @doc_data.uri
       @tags = @doc_data.tags
     end
@@ -45,7 +45,7 @@ module HuSite
   end
 
   class HuSiteData
-    attr_accessor :doc, :title, :author, :datetime, :class, :tags, :uri
+    attr_accessor :doc, :title, :author, :date, :class, :tags, :uri
 
     @@uri_fmt_title = "{title}"
     @@uri_fmt_year = "{year}"
@@ -64,9 +64,9 @@ module HuSite
       @class = @doc.get_lowest_option('class')
       @class = '' if @class == nil
 
-      @datetime = @doc.get_lowest_option('time')
-      @datetime = getopt_datetime(@datetime) if @datetime != nil
-      @datetime = DateTime.new() if @datetime == nil
+      @date = @doc.get_lowest_option('time')
+      @date = getopt_date(@date) if @date != nil
+      @date = Date.new() if @date == nil
 
       @tags = @doc.get_all_options('tags')
       @tags = @tags.join(', ')
@@ -94,23 +94,23 @@ module HuSite
       end
 
       if uri.include?(@@uri_fmt_year) or uri.include?(@@uri_fmt_month) or uri?(@@uri_fmt_day)
-        if not @datetime
-          throw "No document datetime defined but output URI format specifies a datetime replacement."
+        if not @date
+          throw "No document date defined but output URI format specifies a date replacement."
         end
 
-        uri.gsub!(@@uri_fmt_year, "#{@datetime.year}")
-        uri.gsub!(@@uri_fmt_month, "%02d" % [@datetime.month])
-        uri.gsub!(@@uri_fmt_day, "%02d" % [@datetime.day])
+        uri.gsub!(@@uri_fmt_year, "#{@date.year}")
+        uri.gsub!(@@uri_fmt_month, "%02d" % [@date.month])
+        uri.gsub!(@@uri_fmt_day, "%02d" % [@date.day])
       end
       
       return uri
     end
 
-    def getopt_datetime(datetime)
+    def getopt_date(date)
       time_key = 'time'
 
       begin
-        return DateTime::strptime(datetime, "%Y-%m-%d %H:%M")
+        return Date::strptime(date, "%Y-%m-%d")
       rescue ArgumentError
         
       end
