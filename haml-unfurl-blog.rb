@@ -125,8 +125,8 @@ module HamlUnfurl
         end
 
         uri.gsub!(@@uri_fmt_year, "#{doc.datetime.year}")
-        uri.gsub!(@@uri_fmt_month, "#{doc.datetime.month}")
-        uri.gsub!(@@uri_fmt_day, "#{doc.datetime.day}")
+        uri.gsub!(@@uri_fmt_month, "%02d" % [doc.datetime.month])
+        uri.gsub!(@@uri_fmt_day, "%02d" % [doc.datetime.day])
       end
       
       return uri
