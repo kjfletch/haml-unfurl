@@ -3,8 +3,9 @@ require 'haml-unfurl'
 require 'fileutils'
 
 module HuSite
+
   class HuSitePublic
-    attr_reader :title, :author, :tags, :datetime
+    attr_reader :title, :author, :tags, :datetime, :uri
 
     def initialize(doc_data, docs)
       @doc_data = doc_data
@@ -12,12 +13,39 @@ module HuSite
       @title = @doc_data.title
       @author = @doc_data.author
       @datetime = @doc_data.datetime
+      @uri = @doc_data.uri
       @tags = @doc_data.tags
+    end
+
+    def related(docclass=:ignore, include_self=false, sort=:date_dec)
+      related = []
+      match_scores = { }
+      
+      @docs.each do |doc|
+        if include_self == false and doc == @doc_data.doc
+          next
+        end
+        
+        tag_match = 0
+
+        @tags.each do |tag|
+          if doc.tags.include?(tag)
+            tag_match += 1
+          end
+        end
+
+        if tag_match > 0
+          related << doc
+          match_scores[doc] = tag_match
+        end
+      end
+
+      return related
     end
   end
 
   class HuSiteData
-    attr_accessor :doc, :title, :author, :datetime, :class, :tags, :output_uri
+    attr_accessor :doc, :title, :author, :datetime, :class, :tags, :uri
 
     @@uri_fmt_title = "{title}"
     @@uri_fmt_year = "{year}"
@@ -49,9 +77,9 @@ module HuSite
 
       ## We do this after all other data vars are set up as they may
       ## be referenced by the uri expand for the filename.
-      @output_uri = @doc.get_lowest_option('output')
-      @output_uri = "#{@@uri_fmt_title}.html" if @output_uri == nil
-      @output_uri = get_output_file(@output_uri)
+      @uri = @doc.get_lowest_option('output')
+      @uri = "#{@@uri_fmt_title}.html" if @uri == nil
+      @uri = get_output_file(@uri)
     end
 
     def get_output_file(uri_fmt)
@@ -116,7 +144,7 @@ module HuSite
           :hudata => hupublic,
         }
  
-        output_file = File.join(output_dir, doc_data.output_uri)
+        output_file = File.join(output_dir, doc_data.uri)
         rendered = doc_data.doc.render(data)
         output_file_dir = File.dirname(output_file)
         FileUtils.mkdir_p(output_file_dir)
@@ -165,11 +193,5 @@ module HuSite
     nonsafe = nonsafe.gsub(/^_|_$/, '')
     return nonsafe
   end
-
-  blog_unfurl = HuSiteUnfurl.new()
-  blog_unfurl.add_include('templates')
-  blog_unfurl.add_dir('blog')
-  blog_unfurl.add_dir('projects')
-  blog_unfurl.unfurl('./output')
 end
 
