@@ -2,8 +2,21 @@
 require 'haml-unfurl'
 require 'fileutils'
 
-module HamlUnfurl
-  class BlogUnfurlData
+module HuSite
+  class HuSitePublic
+    attr_reader :title, :author, :tags, :datetime
+
+    def initialize(doc_data, docs)
+      @doc_data = doc_data
+      @docs = docs
+      @title = @doc_data.title
+      @author = @doc_data.author
+      @datetime = @doc_data.datetime
+      @tags = @doc_data.tags
+    end
+  end
+
+  class HuSiteData
     attr_accessor :doc, :title, :author, :datetime, :class, :tags, :output_uri
 
     @@uri_fmt_title = "{title}"
@@ -49,7 +62,7 @@ module HamlUnfurl
           throw "No document title defined but output URI format specifies a title replacement."
         end
 
-        uri.gsub!(@@uri_fmt_title, HamlUnfurl::uri_safe(@title))
+        uri.gsub!(@@uri_fmt_title, HuSite::uri_safe(@title))
       end
 
       if uri.include?(@@uri_fmt_year) or uri.include?(@@uri_fmt_month) or uri?(@@uri_fmt_day)
@@ -69,7 +82,7 @@ module HamlUnfurl
       time_key = 'time'
 
       begin
-        return Date::strptime(datetime, "%Y-%m-%d %H:%M")
+        return DateTime::strptime(datetime, "%Y-%m-%d %H:%M")
       rescue ArgumentError
         
       end
@@ -79,7 +92,7 @@ module HamlUnfurl
 
   end
 
-  class BlogUnfurl
+  class HuSiteUnfurl
     def initialize ()
       @dirs = []
       @include_dirs = []
@@ -91,17 +104,16 @@ module HamlUnfurl
       file_list = get_file_list()
 
       file_list.each do |file|
-        doc = Unfurl.new(file, @include_dirs)
-        doc_data = BlogUnfurlData.new(doc)
+        doc = HamlUnfurl::Unfurl.new(file, @include_dirs)
+        doc_data = HuSiteData.new(doc)
         docs << doc_data
       end
 
       docs.each do |doc_data|
+        hupublic = HuSitePublic.new(doc_data, docs)
+
         data = {
-          :title => doc_data.title,
-          :author => doc_data.author,
-          :datetime => doc_data.datetime,
-          :tags => doc_data.tags
+          :hudata => hupublic,
         }
  
         output_file = File.join(output_dir, doc_data.output_uri)
@@ -154,7 +166,7 @@ module HamlUnfurl
     return nonsafe
   end
 
-  blog_unfurl = BlogUnfurl.new()
+  blog_unfurl = HuSiteUnfurl.new()
   blog_unfurl.add_include('templates')
   blog_unfurl.add_dir('blog')
   blog_unfurl.add_dir('projects')
