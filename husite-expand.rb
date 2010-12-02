@@ -93,7 +93,7 @@ module HuSite
         uri.gsub!(@@uri_fmt_title, HuSite::uri_safe(@title))
       end
 
-      if uri.include?(@@uri_fmt_year) or uri.include?(@@uri_fmt_month) or uri?(@@uri_fmt_day)
+      if uri.include?(@@uri_fmt_year) or uri.include?(@@uri_fmt_month) or uri.include?(@@uri_fmt_day)
         if not @date
           throw "No document date defined but output URI format specifies a date replacement."
         end
