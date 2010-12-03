@@ -56,7 +56,7 @@ module HuSite
       super(docclass, default)
     end
 
-    def class
+    def docclass
       return @string.clone
     end
   end
@@ -128,7 +128,7 @@ module HuSite
       @docs = docs
       @title = DocumentTitle.new(doc.get_lowest_option('title'))
       @author = DocumentAuthor.new(doc.get_lowest_option('author'))
-      @class = DocumentClass.new(doc.get_lowest_option('class'))
+      @docclass = DocumentClass.new(doc.get_lowest_option('class'))
       @date = DocumentDate.new(doc.get_lowest_option('time'))
 
       tags = doc.get_all_options('tags')
@@ -156,19 +156,21 @@ module HuSite
       return @title.title
     end
 
+    def docclass
+      return @docclass.docclass
+    end
+
     def date
       return @date.date
     end
-
-    def related(docclass=:ignore, include_self=false, sort=:date_dec)
+    
+    def related(docclass=:ignore, sort=:date_desc)
       related = []
       match_scores = { }
       
+      docclass = @docclass if docclass == :self
+
       @docs.each do |doc|
-        if include_self == false and self == doc
-          next
-        end
-        
         tag_match = 0
 
         tags.each do |tag|
@@ -177,11 +179,18 @@ module HuSite
           end
         end
 
+        next if docclass != :ignore and docclass != @docclass
+
         if tag_match > 0
           related << doc
           match_scores[doc] = tag_match
         end
       end
+
+      related = related - [self]
+      related.sort! {|x,y| x.date <=> y.date } if sort == :date_desc
+      related.sort! {|x,y| y.date <=> x.date } if sort == :date_asc
+      related.sort! {|x,y| match_scores[x] <=> match_scores[y] } if sort == :match
 
       return related
     end
