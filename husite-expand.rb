@@ -82,44 +82,21 @@ module HuSite
   end
 
   class DocumentUri < DocumentString
-    @@uri_fmt_title = "{title}"
-    @@uri_fmt_year = "{year}"
-    @@uri_fmt_month = "{month}"
-    @@uri_fmt_day = "{day}"
-
-    def initialize(uri, title, date, default="/#{@@uri_fmt_title}.html")
+    def initialize(uri, title, date, default='/{title}.html')
       super(uri, default)
-      
       @uri_fmt = uri
-      @uri = expand_uri(@uri_fmt, title, date)
+      expand_data = {}
+      expand_data['title'] = title if title
+      if date
+        expand_data['year'] = "#{date.year}"
+        expand_data['month'] = "%02d" % [date.month]
+        expand_data['day'] = "%02d" % [date.day]
+      end
+      @uri = HuSite::expand_option(@uri_fmt, {}, expand_data)
     end
 
     def uri
       return @uri.clone
-    end
-
-    def expand_uri(uri_fmt, title, date)
-      uri = uri_fmt
-      
-      if uri.include?(@@uri_fmt_title)
-        if not title
-          throw "No document title defined but output URI format specifies a title replacement."
-        end
-        
-        uri = uri.gsub(@@uri_fmt_title, HuSite::uri_safe(title))
-      end
-      
-      if uri.include?(@@uri_fmt_year) or uri.include?(@@uri_fmt_month) or uri.include?(@@uri_fmt_day)
-        if not date
-          throw "No document date defined but output URI format specifies a date replacement."
-        end
-        
-        uri = uri.gsub(@@uri_fmt_year, "#{date.year}")
-        uri = uri.gsub(@@uri_fmt_month, "%02d" % [date.month])
-        uri = uri.gsub(@@uri_fmt_day, "%02d" % [date.day])
-      end
-      
-      return uri
     end
   end
 
@@ -263,11 +240,38 @@ module HuSite
     end
   end
 
-  def self.uri_safe(nonsafe)
+  def self.filesystem_filter(nonsafe)
     nonsafe = nonsafe.gsub(/[^a-zA-Z0-9_]/, '_')
     nonsafe = nonsafe.gsub(/_{2,}/, '_')
     nonsafe = nonsafe.gsub(/^_|_$/, '')
     return nonsafe
+  end
+
+  def self.uri_arg_filter(nonsafe)
+    return "URI_ARG_FILTER_TODO"
+  end
+  
+  def self.expand_option(option, filters={}, expand_data={}, default='fs')
+    expand_filters = { "fs" => self.method(:filesystem_filter), "arg" => self.method(:uri_arg_filter) }
+    filters.each {|k,v| expand_filters[k] = v }
+    expanded_options = option
+
+    expanded_options.gsub!(/\{(?:(.+?):)?(.+?)\}/) do |x|
+      filter = $1
+      filter = default if filter == '' or filter == nil
+      var = $2
+
+      throw Exception.new("No filter called '#{filter}' when expanding option string.") if filter != nil and not expand_filters.key?(filter)
+      throw Exception.new("No data called '#{var}' when expanding option string.") if not expand_data.key?(var)
+
+      if filter
+        expand_filters[filter].call(expand_data[var])
+      else
+        expand_data[var]
+      end
+    end
+
+    return expanded_options
   end
 end
 
