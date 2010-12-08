@@ -1,6 +1,7 @@
 # Copyright (C) 2010 Kevin J. Fletcher
 require 'haml-unfurl'
 require 'fileutils'
+require 'uri'
 
 module HuSite
 
@@ -248,7 +249,7 @@ module HuSite
   end
 
   def self.uri_arg_filter(nonsafe)
-    return "URI_ARG_FILTER_TODO"
+    return URI.escape(nonsafe)
   end
   
   def self.expand_option(option, filters={}, expand_data={}, default='fs')
